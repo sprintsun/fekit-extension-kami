@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-FEKIT
-=====================
-
 ### fekit extension是什么? ###
 
 有时你希望增加一些命令给 fekit，但是大多数情况下并不想把它加入 fekit project 官方命令中。 
@@ -67,25 +63,3 @@ package.json
 
     npm config set user 0
     npm config set unsafe-perm true
-
-
-
-=======
-#### ***文中链接各位根据自己项目对应修改***
---------------------------------------------------------------------------------
-#### **项目管理**：
-#### *sp*:(http://sp.corp.qunar.com/default.aspx)<br />
-
-#### *jira*:(http://task.corp.qunar.com/browse/)<br />
---------------------------------------------------------------------------------
-#### **发布相关**:
-#### *devbds*:(http://devbds.corp.qunar.com/jenkins/)<br />
-#### *bds*:(http://bds.corp.qunar.com/jenkins/)<br />
---------------------------------------------------------------------------------
-#### **质量管理**:
-#### *bugfree*:(http://svn.corp.qunar.com/bugfree)<br />
-#### *case*:(http://bugfree.corp.qunar.com/bugfree/index.php/case)<br />
---------------------------------------------------------------------------------
-#### **项目信息**:
-#### *wiki*:(http://wiki.corp.qunar.com/)<br />
->>>>>>> 924d69f5ecd67397a7ea199c88f219a07b348e9d
