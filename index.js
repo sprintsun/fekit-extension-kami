@@ -59,8 +59,7 @@ function showInfo(type) {
 
 // 从服务器获取组件最新版本号
 function getKamiInfo(cb) {
-    var url = BASE_URL + '/info.config';
-    log('- 从服务器获取info.config ...');
+    var url = BASE_URL + 'info.config';
     request(url, function(err, res, body) {
         if (!err && res.statusCode === 200) {
             try {
@@ -71,7 +70,7 @@ function getKamiInfo(cb) {
             }
             cb(null);
         } else {
-            error('获取info.config失败。');
+            error('从 '+url+' 下载info.config失败！');
         }
     });
 }
@@ -194,7 +193,7 @@ function addKami(type, version, root) {
                     addWidget(name, widgets[name], root, callback);
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, path.join(root, kamiSource, type));
+                    updateWidgetIndex(version, path.join(root, kamiSource, type), false);
                     success('安装 ' + widget + ' 成功 ...');
                     total = count = 0;
                     cb(null);
@@ -251,7 +250,7 @@ function updaeKami(type, version, root) {
                     addWidget(name, widgets[name], root, callback);
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, path.join(root, kamiSource, type));
+                    updateWidgetIndex(version, path.join(root, kamiSource, type), true);
                     success('安装 ' + widget + ' 成功 ...');
                     total = count = 0;
                     deleteOldVersion(type, version, root, function() {
@@ -283,12 +282,14 @@ function deleteOldVersion(type, version, root, cb) {
 }
 
 // 管理组件目录下的index.js
-function updateWidgetIndex(version, widgetPath) {
+function updateWidgetIndex(version, widgetPath, rewrite) {
     var filePath = path.join(widgetPath, 'index.js');
-    var content = 'module.exports = require("./' + version + '/index.js");';
-    var file = fs.createWriteStream(filePath);
-    file.write(content);
-    file.end();
+    var existsFile = fs.existsSync(filePath);
+    if(rewrite || !existsFile) {
+        var file = fs.createWriteStream(filePath);
+        file.write('module.exports = require("./' + version + '/index.js");');
+        file.end();
+    }
 }
 
 function moveToUpperDirectory(tarPath) {
@@ -437,8 +438,8 @@ exports.set_options = function( optimist ){
     optimist.alias('i', 'install');
     optimist.describe('i', '根据kami.config加载组件');
 
-    optimist.alias('p', 'push');
-    optimist.describe('p', '往服务器推送组件');
+    optimist.alias('p', 'pack');
+    optimist.describe('p', '组件打包，仅供组件开发者使用！');
 
     //optimist.alias('d', 'del');
     //optimist.describe('d', '移除kami组件');
@@ -467,7 +468,7 @@ exports.run = function( options ){
     options.update = options.u;
     options.version = options.v;
     options.install = options.i;
-    options.push = options.p;
+    options.pack = options.p;
 
     options.info = options.info;
     options.init = options.init;
@@ -486,22 +487,9 @@ exports.run = function( options ){
         return;
     }
 
-    if(options.push) {
-        var root = options.push !== true ? options.push : './kami-source';
+    if(options.pack) {
+        var root = options.pack !== true ? options.pack : './kami-source';
         pack(root);
-        return;
-    }
-
-    try {
-        var existsKami = fs.existsSync(path.join(root, './kami.config'));
-        if(existsKami) { // 优先读取kami.config
-            config = JSON.parse(fs.readFileSync(path.join(root, './kami.config')));
-        } else { // 读取fekit.config的kami节点
-            var fekitConfig = JSON.parse(fs.readFileSync(path.join(root, 'fekit.config')));
-            config = fekitConfig['kami'];
-        }
-    } catch (e) {
-        error('读取kami配置文件失败。');
         return;
     }
 
@@ -519,6 +507,19 @@ exports.run = function( options ){
             return;
         }
     } else if (options.install) {
+        try {
+            var existsKami = fs.existsSync(path.join(root, './kami.config'));
+            if(existsKami) { // 优先读取kami.config
+                config = JSON.parse(fs.readFileSync(path.join(root, './kami.config')));
+            } else { // 读取fekit.config的kami节点
+                var fekitConfig = JSON.parse(fs.readFileSync(path.join(root, 'fekit.config')));
+                config = fekitConfig['kami'];
+            }
+        } catch (e) {
+            error('读取kami配置文件失败。');
+            return;
+        }
+
         var widgets = [];
         for(var key in config.scripts) {
             widgets.push({name: key, version: config.scripts[key]});
