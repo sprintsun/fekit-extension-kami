@@ -7,7 +7,7 @@ var fs = require('fs'),
     fsUtil = require('./fs-util');
 
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
-var VERSION = '0.0.4';
+var VERSION = '0.0.5';
 var kamiInfo = null;
 var kamiSource = 'src/kami';
 var kamiConfigFile = 'kami.config';
@@ -45,16 +45,22 @@ function showList() {
 }
 
 function showLocalList(root) {
-    var widgetsRoot = path.join(root, kamiSource);
-    if(fs.existsSync(widgetsRoot)) {
-        log('本地安装的kami组件列表信息：');
-        log('------------------------------------');
-        fs.readdirSync(widgetsRoot).forEach(function(widget) {
-            var widgetPath = path.join(widgetsRoot, widget);
-            fs.readdirSync(widgetPath).forEach(function(version) {
-                checkVersion(version) && log(widget + ': ' + version);
+    if(fs.existsSync(root)) {
+        var widgetsRoot = path.join(root, kamiSource);
+        if(fs.existsSync(widgetsRoot)) {
+            log('本地安装的kami组件列表信息：');
+            log('------------------------------------');
+            fs.readdirSync(widgetsRoot).forEach(function(widget) {
+                var widgetPath = path.join(widgetsRoot, widget);
+                fs.readdirSync(widgetPath).forEach(function(version) {
+                    checkVersion(version) && log(widget + ': ' + version);
+                });
             });
-        });
+        } else {
+            error('当前目录 ' + root + ' 下不存在 ' + kamiSource + ' 目录！');
+        }
+    } else {
+        error('不存在路径：' + root);
     }
 }
 
@@ -96,6 +102,10 @@ function getKamiInfo(cb) {
 
 // 通过kami.config安装kami组件
 function installWidget(taskList, widgets, root) {
+    if(!widgets.length) {
+        warn('请在'+kamiConfigFile+'配置需要安装的组件！');
+        return;
+    }
     var kamiPath = path.join(root, kamiSource);
     fsUtil.rmDirSync(kamiPath);
     fsUtil.mkDirSync(kamiPath);
@@ -225,7 +235,7 @@ function addWidget(type, version, root) {
     }
 }
 
-// 更新kami组件,更新组件会删除该组件目录下的所有版本，把组件更新到最新的版本
+// 更新kami组件
 function updateWidget(type, version, root) {
     var total = 0,
         count = 0;
@@ -296,19 +306,23 @@ function updateWidget(type, version, root) {
 // 删除旧版本
 function deleteOldVersion(type, version, root, cb) {
     var widgetPath = path.join(root, kamiSource, type);
-    var delVersionArr = [];
+    var delVersion = '', delDir = [];
     fs.readdirSync(widgetPath).forEach(function(file) {
         var tmpPath = path.join(widgetPath, file);
         if(fsUtil.isDirSync(tmpPath) && file !== version) {
-            fsUtil.rmDirSync(tmpPath);
-            delVersionArr.push(file);
+            delDir.push(tmpPath);
+            delVersion = file;
         }
     });
-    if(delVersionArr.length) {
-        delVersionArr.forEach(function(file) {
-            log(type + '@' + file + '已被删除 ...');
-        });
+
+    // 只有一个版本的情况才会删除旧版本
+    if(delDir.length == 1) {
+        fsUtil.rmDirSync(delDir[0]);
+        warn('旧版本' + type + '@' + delVersion + '已被删除 ...');
+    } else {
+        warn(type + '存在多版本，请手动删除不需要的版本 ...');
     }
+
     success(type + '已更新到最新的版本：' + version);
     cb();
 }
@@ -332,8 +346,20 @@ function deleteWidget(type, version, root) {
         error(type + ' 还未安装，无法删除！');
         return;
     } else {
-        fsUtil.rmDirSync(widgetRootPath);
-        success(type + '删除成功！');
+        if(version == "*") {
+            fsUtil.rmDirSync(widgetRootPath);
+        } else {
+            widgetRootPath = path.join(widgetRootPath, version);
+            if(!fs.existsSync(widgetRootPath)) {
+                error(type + '@' + version + ' 还未安装，无法删除！');
+                return;
+            } else {
+                fsUtil.rmDirSync(widgetRootPath);
+            }
+        }
+
+        var widget = version == "*" ? type : type + '@' + version;
+        success(widget + '删除成功！');
     }
 }
 
@@ -540,58 +566,75 @@ function compareVersion(oldVersion, newVersion) {
     }
 }
 
+// 显示构建工具版本信息
+function showVersion() {
+    log('kamibuild v' + VERSION);
+}
+
+function init(root) {
+    if(fs.existsSync(path.join(root, kamiConfigFile))) {
+        warn('已存在' + kamiConfigFile + '文件，先将其删除才能执行init命令');
+        return;
+    }
+    var file = fs.createWriteStream(kamiConfigFile);
+    var content = '{\n\t"scripts": {},\n\t"demo": {},\n\t"adapter": {}\n}';
+    file.write(content);
+    file.end();
+    success('初始化成功，已创建'+kamiConfigFile);
+}
+
 exports.usage = "kami构建工具"
 
 exports.set_options = function( optimist ){
-    optimist.alias('l', 'list');
-    optimist.describe('l', '查看kami所提供的组件列表。例如"fekit kami -l"');
 
-    optimist.alias('local', 'local');
-    optimist.describe('local', '查看本地安装的kami组件列表。例如"fekit kami --local"');
-
-    optimist.alias('init', 'init');
-    optimist.describe('init', 'kami组件初始化，将在该目录下创建' + kamiConfigFile + '。例如"fekit kami --init"');
+    optimist.describe('init', 'kami组件初始化。');
 
     optimist.alias('i', 'install');
-    optimist.describe('i', '根据'+kamiConfigFile+'加载组件。例如"fekit kami -i"');
+    optimist.describe('i', '根据配置'+kamiConfigFile+'加载组件');
+
+    optimist.alias('l', 'list');
+    optimist.describe('l', '查看kami所有的组件列表。');
+
+    optimist.describe('local', '查看本地安装的kami组件列表。');
 
     optimist.alias('a', 'add');
-    optimist.describe('a', '添加kami组件。例如"fekit kami -a dialog"');
+    optimist.describe('a', '添加kami组件');
 
     optimist.alias('u', 'update');
-    optimist.describe('u', '更新kami组件。例如"fekit kami -u dialog"');
+    optimist.describe('u', '更新kami组件');
 
     optimist.alias('d', 'del');
-    optimist.describe('d', '删除kami组件。例如"fekit kami -d dialog"');
+    optimist.describe('d', '删除kami组件');
+
+    optimist.describe('info', '指定组件的详细信息。');
 
     optimist.alias('v', 'version');
-    optimist.describe('v', '查看kami构建工具版本号。例如"fekit kami -v"');
+    optimist.describe('v', '查看kami构建工具版本号');
 
-    optimist.alias('r', 'remote');
-    optimist.describe('r', '源地址，默认: http://ued.qunar.com/kami-source/');
+    //optimist.alias('r', 'remote');
+    //optimist.describe('r', '源地址，默认: http://ued.qunar.com/kami-source/');
 
     //optimist.alias('h', 'history');
     //optimist.describe('h', 'kami组件的历史版本记录');
 
-    optimist.alias('info', 'info');
-    optimist.describe('info', '指定组件的详细信息。例如"fekit kami --info dialog"');
-
     optimist.alias('p', 'pack');
-    optimist.describe('p', '组件打包，仅供组件开发者使用！例如"fekit kami -p dialog"');
+    optimist.describe('p', '组件打包【开发者使用】');
 
-    optimist.alias('packall', 'packall');
-    optimist.describe('packall', '全部组件打包，仅供组件开发者使用！例如"fekit kami --packall"');
+    optimist.describe('packall', '全部组件打包【开发者使用】');
 
-    optimist.alias('q', 'qappInstall');
-    optimist.describe('q', '组件打包到Qapp，仅供组件开发者使用！例如"fekit kami -q"');
+    optimist.describe('qappinstall', 'qapp安装使用【开发者使用】');
+    optimist.describe('qappadd', 'qapp添加kami组件【开发者使用】');
+    optimist.describe('qappupdate', 'qapp更新kami组件【开发者使用】');
+    optimist.describe('qappdel', 'qapp删除kami组件【开发者使用】');
+
+    optimist.describe('detail', '详细帮助参见wiki:http://wiki.corp.qunar.com/pages/viewpage.action?pageId=69154481');
 
     return optimist;
 }
 
 exports.run = function( options ){
 
-    var root = options.cwd,
-        taskList = [];
+    var root = options.cwd;
 
     options.list = typeof options.l == "undefined" ? options.list : options.l;
     options.install = typeof options.i == "undefined" ? options.install : options.i;
@@ -599,51 +642,29 @@ exports.run = function( options ){
     options.update = typeof options.u == "undefined" ? options.update : options.u;
     options.del = typeof options.d == "undefined" ? options.del : options.d;
     options.version = typeof options.v == "undefined" ? options.version : options.v;
-    options.remote = typeof options.r == "undefined" ? options.remote : options.r;
     options.pack = typeof options.p == "undefined" ? options.pack : options.p;
-    options.qappInstall = typeof options.q == "undefined" ? options.qappInstall : options.q;
 
     if(options.version) {
-        log('kamibuild v' + VERSION);
-        return;
-    }
-
-    if(options.init) {
-        if(fs.existsSync(path.join(root, kamiConfigFile))) {
-            warn('已存在'+kamiConfigFile+'文件，先将其删除才能执行init命令');
-            return;
+        showVersion();
+    } else if(options.init) {
+        init(root);
+    } else if(options.local) {
+        if(options.local !== true) {
+            showLocalList(options.local);
+        } else {
+            showLocalList(root);
         }
-        var file = fs.createWriteStream(kamiConfigFile);
-        var content = '{\n\t"scripts": {},\n\t"demo": {},\n\t"adapter": {}\n}';
-        file.write(content);
-        file.end();
-        success('初始化成功，已创建'+kamiConfigFile);
-        return;
-    }
-
-    if(options.local) {
-        showLocalList(root);
-        return;
-    }
-
-    if(options.pack) {
-        var root = './kami-source';
+    } else if(options.pack) {
         if(options.pack !== true) {
-            pack(root, options.pack);
+            pack('./kami-source', options.pack);
         } else {
             warn('必须指定需要打包的组件名！例如fekit kami -p dialog');
-            return;
         }
-        return;
-    }
-
-    if(options.packall) {
-        var root = options.packall !== true ? options.packall : './kami-source';
-        pack(root);
-        return;
-    }
-
-    if (options.del) {
+    } else if(options.packall) {
+        pack(options.packall !== true ? options.packall : './kami-source');
+    } else if (options.del || options.qappdel) {
+        kamiSource = options.del ? 'src/kami' : 'src/modules/scripts';
+        options.qappdel && (options.del = options.qappdel);
         if(options.del !== true) {
             var index = options.del.indexOf('@');
             if(~index) { // 有指定版本号
@@ -656,71 +677,74 @@ exports.run = function( options ){
         } else {
             warn('必须指定需要删除的组件名！');
         }
-        return;
-    }
+    } else {
+        var taskList = [];
 
-    taskList.push(getKamiInfo);
+        taskList.push(getKamiInfo);
 
-    if (options.list) {
-        taskList.push(showList());
-    }
-
-    if (options.info) {
-        if(options.info !== true) {
-            taskList.push(showInfo(options.info));
-        } else {
-            warn('必须指定需要查询的组件名！例如fekit kami -i dialog');
-            return;
-        }
-    } else if (options.install || options.qappInstall) {
-        var config = getKamiConfig(root);
-        var widgets = [];
-        for(var key in config.scripts) {
-            widgets.push({name: key, version: config.scripts[key]});
-        }
-        options.install ? (kamiSource = 'src/kami') : (kamiSource = 'src/modules/scripts');
-        installWidget(taskList, widgets, root);
-    } else if (options.add) {
-        if(options.add !== true) {
-            var index = options.add.indexOf('@');
-            if(~index) { // 有指定版本号
-                var type = options.add.substring(0, index),
-                    version = options.add.substring(index + 1);
-                taskList.push(addWidget(type, version, root));
+        if (options.list) {
+            taskList.push(showList());
+        } else if (options.info) {
+            if(options.info !== true) {
+                taskList.push(showInfo(options.info));
             } else {
-                taskList.push(addWidget(options.add, '*', root));
+                warn('必须指定需要查询的组件名！例如fekit kami -i dialog');
+                return;
             }
-        } else {
-            warn('必须指定需要添加的组件名！');
-            return;
-        }
-    } else if (options.update) {
-        if(options.update !== true) {
-            var index = options.update.indexOf('@');
-            if(~index) { // 有指定版本号
-                var type = options.update.substring(0, index),
-                    version = options.update.substring(index + 1);
-                taskList.push(updateWidget(type, version, root));
+        } else if (options.install || options.qappinstall) {
+            kamiSource = options.install ? 'src/kami' : 'src/modules/scripts';
+            var config = getKamiConfig(root);
+            var widgets = [];
+            for(var key in config.scripts) {
+                widgets.push({name: key, version: config.scripts[key]});
+            }
+            installWidget(taskList, widgets, root);
+        } else if (options.add || options.qappadd) {
+            kamiSource = options.add ? 'src/kami' : 'src/modules/scripts';
+            options.qappadd && (options.add = options.qappadd);
+            if(options.add !== true) {
+                var index = options.add.indexOf('@');
+                if(~index) { // 有指定版本号
+                    var type = options.add.substring(0, index),
+                        version = options.add.substring(index + 1);
+                    taskList.push(addWidget(type, version, root));
+                } else {
+                    taskList.push(addWidget(options.add, '*', root));
+                }
             } else {
-                taskList.push(updateWidget(options.update, '*', root));
+                warn('必须指定需要添加的组件名！');
+                return;
             }
-        } else {
-            warn('必须指定需要更新的组件名！');
+        } else if (options.update || options.qappupdate) {
+            kamiSource = options.update ? 'src/kami' : 'src/modules/scripts';
+            options.qappupdate && (options.update = options.qappupdate);
+            if(options.update !== true) {
+                var index = options.update.indexOf('@');
+                if(~index) { // 有指定版本号
+                    var type = options.update.substring(0, index),
+                        version = options.update.substring(index + 1);
+                    taskList.push(updateWidget(type, version, root));
+                } else {
+                    taskList.push(updateWidget(options.update, '*', root));
+                }
+            } else {
+                warn('必须指定需要更新的组件名！');
+                return;
+            }
+        }
+
+        if(taskList.length == 0) {
+            error('输入有误，请输入--help查看kami命令工具帮助');
             return;
         }
-    }
 
-    if(taskList.length == 1) {
-        error('输入有误，请输入--help查看kami命令工具帮助');
-        return;
-    }
+        if (!fs.existsSync(path.join(root, './tmp'))) {
+            fs.mkdirSync(path.join(root, './tmp'));
+        }
 
-    if (!fs.existsSync(path.join(root, './tmp'))) {
-        fs.mkdirSync(path.join(root, './tmp'));
+        async.series(taskList, function() {
+            fsUtil.rmDirSync(path.join(root, './tmp'));
+        });
     }
-
-    async.series(taskList, function() {
-        fsUtil.rmDirSync(path.join(root, './tmp'));
-    });
 
 }
