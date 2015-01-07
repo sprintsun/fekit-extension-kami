@@ -1,65 +1,99 @@
-### fekit extension是什么? ###
+KamiBuilder
+=============================
+依赖于fekit，当前版本已支持组件的多版本管理
 
-有时你希望增加一些命令给 fekit，但是大多数情况下并不想把它加入 fekit project 官方命令中。 
+## 安装
+执行npm install fekit-extension-kami
 
-所以，fekit extension为你提供了这样一种办法来扩展命令。
+## 使用流程
+1. 在需要使用kami组件的目录下执行fekit kami --init命令 
+2. 修改创建的kami.config文件，scripts项用来配置需要安装的组件，demo项用来配置需要下载的demo文件(还未开发该功能)，adapter项用来配置需要加载的相应适配器，目前规划的有qapp/avalon/zep2. to等
+3. 执行fekit kami --install命令，将在该目录的src/kami下安装所3. 有配置的组件
+4. qapp使用的话，执行fekit kami -q，将在该目录的src/modules/scripts4. 下创建kami组件
+5. 可以单独使用fekit kami -a dialog命令安装单独的组件，其他操作命令见下面介绍。
 
-## 如何开发？ ###
+## 多版本管理方式
+* 安装了kami组件后，会创建src/kami/xx组件/index.js文件，用户可以直接require该文件来调用xx组件。
+* 如果该目录下安装了多个版本，需要使用特定版本的组件时，也可以引用src/kami/xx组件/具体版本/index.js文件。
+* 当执行了fekit kami -u xx组件 命令后，会自动更新 src/kami/xx组件/index.js ，将引用的版本指向update后的版本。
+* 使用fekit kami -a xx组件，除非第一次add，否则不会自动更新 src/kami/xx组件/index.js
 
-请先将本项目 clone 到本地(假设要开发一个svn扩展)
+## 命令介绍
+安装完KamiBuilder后可以执行fekit kami --help查看命令使用帮助
 
-    git clone git@github.com:rinh/fekit-extension-template.git ./fekit-extension-svn
+### --list || -l 
+说明：查看kami所提供的组件列表。
 
-本项目是 extension标准模板，以下文件是你需要修改的。
+例如：fekit kami -l
 
-* index.js  --- 扩展入口文件，主要功能需要写在这里
-* package.json  --- npm 配置文件
-* README.md  --- 说明文档，简单介绍一下你的功能
+### --local [path]
+说明：查看本地安装的kami组件列表。默认搜索当前目录下的。
 
-#### package.json  ####
+参数：如果有path参数，则会去搜索指定path下的kami组件
 
-    {
-        // *必填项* 扩展命令名称
-        "fekit_extension_command_name":"",
-        // *必填项* 例 fekit-extension-svn
-        "name": "fekit-extension-template",
-        // *必填项* 请维护你的依赖
-        "version": "0.0.0"
-    }
+例如：fekit kami --local   fekit kami --local /Users/guest/kami/'
 
-## 如何发布? ###
+### --init
+说明：kami组件初始化，将在当前目录下创建kami.config文件
 
-    npm publish 
+例如：fekit kami --init
 
-## 如何使用? ###
+### --install || -i
+说明：加载当前目录kami.config的scripts节点配置的组件
 
-以 svn 为例
+例如：fekit kami -i
 
-package.json
+### --add || -a [widget@version]
+说明：添加kami组件。不会自动更新index.js文件
 
-    {
-        // *必填项* 扩展命令名称
-        "fekit_extension_command_name":"svn",
-        // *必填项* 例 fekit-extension-svn
-        "name": "fekit-extension-svn",
-        // *必填项* 请维护你的依赖
-        "version": "0.1.0"
-    }
+参数：widget必须指定，如果没有指定version，则默认加载最新版本
 
-命令行
+例如：fekit kami -a dialog@0.0.1
 
-    npm install fekit-extension-svn -g
+### --update || -u [widget@version]
+说明：更新kami组件，会自动更新index.js文件。如果该组件存在**多个版本**，则执行update命令后不会自动删除旧的版本，需要配合del命令删除旧版本。
 
-    fekit svn --help
+参数：widget必须指定，如果没有指定version，则默认加载最新版本
+
+例如：fekit kami -u dialog
+
+### --del || -d [widget@version]
+说明：删除kami组件。
+
+参数：widget必须指定，如果指定版本号，则删除指定的版本，否则将删除**整个组件**
+
+例如：fekit kami -d dialog@0.0.1
+
+### --info[widget]
+说明：查看指定组件的详细信息，包括名称、最新版本号、组件简介、最后更新时间、源码路径等
+
+参数：widget必须指定。
+
+例如：fekit kami --info dialog
+
+### --pack || -p[widget]
+说明：组件打包，仅供组件开发者使用！必须保证组件当前配置的version(kami.config中的version)大于kami-source/info.config中配置的版本，否则**打包失败**。打包成功后会自动更新kami-source中的版本号和最后更新时间数据。
+
+参数：widget必须指定。
+
+例如：fekit kami -p dialog
+
+### --packall[path]
+说明：全部组件打包，仅供组件开发者使用！必须保证组件当前配置的version(kami.config中的version)大于kami-source/info.config中配置的版本，否则打包失败。打包成功后会自动更新kami-source中的版本号和最后更新时间数据。
+
+参数：kami-source文件的路径。默认打包到当前目录下的kami-source文件夹，如果有该参数，则打包到指定路径。
+
+例如：fekit kami --packall    fekit kami --packall '/Users/guest/kami-source'
+
+### --qappinstall/qappadd/qappupdate/qappdel
+说明：qapp命令模式，功能同install/add/update/del命令一样。qapp的安装目录为src/modules/scripts，与kami默认的安装路径src/kami不一致，所以才提供了该临时功能方便安装。
+
+例如：fekit kami --qappinstall     fekit kami --qappadd dialog@0.0.1      fekit kami -qappupdate dialog
+
+### --version || -v
+说明：查看kami构建工具版本号。
+例如：fekit kami -v
 
 
-### 安装时的一些问题 ###
-
-如果出现
-
-    sh: node: Permission denied
-
-这样的提示，请使用
-
-    npm config set user 0
-    npm config set unsafe-perm true
+## TODO
+1）提供单独的kami命令工具，不依赖于fekit，需要考虑如何解决require问题

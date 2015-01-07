@@ -627,7 +627,7 @@ exports.set_options = function( optimist ){
     optimist.describe('qappupdate', 'qapp更新kami组件【开发者使用】');
     optimist.describe('qappdel', 'qapp删除kami组件【开发者使用】');
 
-    optimist.describe('detail', '详细帮助参见wiki:http://wiki.corp.qunar.com/pages/viewpage.action?pageId=69154481');
+    optimist.describe('detail', '详细帮助参见https://github.com/sprintsun/fekit-extension-kami');
 
     return optimist;
 }
@@ -746,5 +746,4 @@ exports.run = function( options ){
             fsUtil.rmDirSync(path.join(root, './tmp'));
         });
     }
-
 }
