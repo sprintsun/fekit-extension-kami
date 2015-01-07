@@ -1,30 +1,42 @@
 /**
  * Created by jiuhu on 15/1/5.
+ * 文件操作工具类，对nodejs的fsapi的封装
  */
 var fs = require('fs');
 var path = require('path');
 
-function rmDirSync(path) {
+/**
+ * 删除目录 - 同步
+ *
+ * @param dirPath 目录路径
+ *
+ * @return undefined
+ */
+function rmDirSync(dirPath) {
     var files = [];
-    if (fs.existsSync(path)) {
-        files = fs.readdirSync(path);
-        files.forEach(function(file, index) {
-            var curPath = path + "/" + file;
-            if (fs.statSync(curPath).isDirectory()) { // recurse
-                rmDirSync(curPath);
-            } else { // delete file
-                fs.unlinkSync(curPath);
-            }
+    if (fs.existsSync(dirPath)) {
+        files = fs.readdirSync(dirPath);
+        files.forEach(function(file) {
+            var curPath = path.join(dirPath, file);
+            isDirSync(curPath) ? rmDirSync(curPath) : fs.unlinkSync(curPath);
         });
-        fs.rmdirSync(path);
+        fs.rmdirSync(dirPath);
     }
 }
 
-function mkDirSync(dirpath, mode) {
+/**
+ * 创建目录 - 同步
+ *
+ * @param dirPath 目录路径
+ * @param [mode]
+ *
+ * @return undefined
+ */
+function mkDirSync(dirPath, mode) {
     if (mode === undefined) {
         mode = 0755 & (~process.umask());
     }
-    var tPath = dirpath, paths = [];
+    var tPath = dirPath, paths = [];
     while (!fs.existsSync(tPath)) {
         paths.unshift(tPath);
         tPath = path.dirname(tPath);
@@ -34,46 +46,86 @@ function mkDirSync(dirpath, mode) {
     })
 }
 
-function mkDir(dirpath, callback) {
-    fs.exists(dirpath, function(exists) {
+/**
+ * 创建目录 - 异步
+ *
+ * @param dirPath 目录路径
+ * @param callback 回调
+ */
+function mkDir(dirPath, callback) {
+    fs.exists(dirPath, function(exists) {
         if(exists) {
-            callback(dirpath);
+            callback(dirPath);
         } else {
-            mkDir(path.dirname(dirpath), function(){
-                fs.mkdir(dirpath, 0777, callback);
+            mkDir(path.dirname(dirPath), function(){
+                fs.mkdir(dirPath, 0777, callback);
             });
         }
     });
 };
 
-function copySync(source, dest) {
-    if(isFileSync(source)) {
-        copyFileSync(source, dest);
-    } else if(isDirectorySync(source)) {
-        copyDirSync(source, dest);
+/**
+ * 文件或文件夹拷贝都可以使用 - 同步
+ *
+ * @param sourcePath 源文件夹路径 或 源文件路径
+ * @param targetPath 目标文件夹路径，如果目标文件夹不存在，则自动创建
+ */
+function copySync(sourcePath, targetPath) {
+    if(isFileSync(sourcePath)) {
+        copyFileSync(sourcePath, targetPath);
+    } else if(isDirSync(sourcePath)) {
+        copyDirSync(sourcePath, targetPath);
     }
 }
 
-function copyDirSync(source, dest) {
-    mkDirSync(dest);
-    var tSrc, tDst;
-    listSync(source).forEach(function (file) {
-        tSrc = path.join(source, file),
-            tDst = path.join(dest, file);
-        if (isDirectorySync(tSrc)) {
-            copyDirSync(tSrc, tDst);
+/**
+ * 目录拷贝 - 同步
+ *
+ * @param sourcePath 源文件夹路径
+ * @param targetPath 目标文件夹路径，如果目标文件夹不存在，则自动创建
+ */
+function copyDirSync(sourcePath, targetPath) {
+
+    if(!isDirSync(sourcePath)) {
+        throw new Error('不存在源文件夹：' + sourcePath);
+    }
+
+    mkDirSync(targetPath);
+
+    var sPath, tPath;
+    fileListSync(sourcePath).forEach(function (file) {
+        sPath = path.join(sourcePath, file),
+            tPath = path.join(targetPath, file);
+        if (isDirSync(sPath)) {
+            copyDirSync(sPath, tPath);
         } else {
-            copyFileSync(tSrc, dest);
+            copyFileSync(sPath, targetPath);
         }
-    })
+    });
 }
 
-var buffSize = 64 * 1024, //64K
-    buff = new Buffer(buffSize);
-function copyFileSync(srcFile, destDir) {
-    var destFile = path.join(destDir, path.basename(srcFile)),
-        readable = fs.openSync(srcFile, 'r'),
-        writable = fs.openSync(destFile, 'w'),
+/**
+ * 文件拷贝 - 同步
+ *
+ * @param sourceFile 源文件
+ * @param targetPath 目标文件夹路径，如果目标文件夹不存在，则自动创建
+ */
+function copyFileSync(sourceFile, targetPath) {
+
+    if(!isFileSync(sourceFile)) {
+        throw new Error('不存在源文件：' + sourceFile);
+    }
+
+    if(!fs.exists(targetPath)) {
+        mkDirSync(targetPath);
+    }
+
+    var buffSize = 64 * 1024, //64K
+        buff = new Buffer(buffSize);
+
+    var targetFile = path.join(targetPath, path.basename(sourceFile)),
+        readable = fs.openSync(sourceFile, 'r'),
+        writable = fs.openSync(targetFile, 'w'),
         readSize, pos = 0;
 
     while ((readSize = fs.readSync(readable, buff, 0, buffSize, pos)) > 0) {
@@ -84,22 +136,57 @@ function copyFileSync(srcFile, destDir) {
     fs.closeSync(writable);
 }
 
-function listSync(dir) {
-    if (isDirectorySync(dir)) {
-        return fs.readdirSync(dir);
+
+/**
+ * 将文件夹里的所有文件移动到文件夹外，并删除该文件夹
+ *
+ * @param dirPath 当前文件夹路径
+ */
+function moveToUpperDirSync(dirPath) {
+    if(fs.existsSync(dirPath) && isDirSync(dirPath)) {
+        var upperDir = path.dirname(dirPath);
+        copyDirSync(dirPath, upperDir);
+        rmDirSync(dirPath);
+    }
+}
+
+/**
+ * 读取目录下的所有文件
+ *
+ * @param dirPath
+ * @returns {Array} 文件名集合
+ */
+function fileListSync(dirPath) {
+    if (isDirSync(dirPath)) {
+        return fs.readdirSync(dirPath);
     }
     return [];
 }
 
+/**
+ * 创建文件
+ *
+ * @param filePath
+ */
 function createFileSync(file) {
     mkDirSync(path.dirname(file));
     fs.closeSync(fs.openSync(file, 'w'));
 }
 
-function isDirectorySync(file) {
+/**
+ *
+ * @param file
+ * @returns {Boolean}
+ */
+function isDirSync(file) {
     return fs.lstatSync(file).isDirectory();
 }
 
+/**
+ *
+ * @param file
+ * @returns {Boolean}
+ */
 function isFileSync(file) {
     return fs.lstatSync(file).isFile();
 }
@@ -111,8 +198,9 @@ module.exports = {
     copySync: copySync,
     copyDirSync: copyDirSync,
     copyFileSync: copyFileSync,
-    listSync: listSync,
-    isDirectorySync: isDirectorySync,
+    fileListSync: fileListSync,
+    isDirSync: isDirSync,
     isFileSync: isFileSync,
-    createFileSync: createFileSync
+    createFileSync: createFileSync,
+    moveToUpperDirSync: moveToUpperDirSync
 };
