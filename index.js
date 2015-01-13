@@ -7,7 +7,7 @@ var fs = require('fs'),
     fsUtil = require('./fs-util');
 
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
-var VERSION = '0.0.5';
+var VERSION = '0.0.6';
 var kamiInfo = null;
 var kamiSource = 'src/kami';
 var kamiConfigFile = 'kami.config';
