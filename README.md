@@ -7,10 +7,11 @@ KamiBuilder
 
 ## 使用流程
 1. 在需要使用kami组件的目录下执行fekit kami --init命令 
-2. 修改创建的kami.config文件，scripts项用来配置需要安装的组件，demo项用来配置需要下载的demo文件(还未开发该功能)，adapter项用来配置需要加载的相应适配器，目前规划的有qapp/avalon/zep2. to等
-3. 执行fekit kami --install命令，将在该目录的src/kami下安装所3. 有配置的组件
-4. qapp使用的话，执行fekit kami -q，将在该目录的src/modules/scripts4. 下创建kami组件
+2. 修改创建的kami.config文件，scripts项用来配置需要安装的组件，demo项用来配置需要下载的demo文件(还未开发该功能)，adapter项用来配置需要加载的相应适配器，目前规划的有qapp/avalon/zepto等
+3. 执行fekit kami --install命令，将在该目录的src/kami下安装所有配置的组件
+4. qapp使用的话，执行fekit kami -q，将在该目录的src/modules/scripts下创建kami组件
 5. 可以单独使用fekit kami -a dialog命令安装单独的组件，其他操作命令见下面介绍。
+6. 使用--path可以自定义安装路径
 
 ## 多版本管理方式
 * 安装了kami组件后，会创建src/kami/xx组件/index.js文件，用户可以直接require该文件来调用xx组件。
@@ -26,10 +27,8 @@ KamiBuilder
 
 例如：fekit kami -l
 
-### --local [path]
+### --local
 说明：查看本地安装的kami组件列表。默认搜索当前目录下的。
-
-参数：如果有path参数，则会去搜索指定path下的kami组件
 
 例如：fekit kami --local   fekit kami --local /Users/guest/kami/'
 
@@ -72,18 +71,16 @@ KamiBuilder
 例如：fekit kami --info dialog
 
 ### --pack || -p[widget]
-说明：组件打包，仅供组件开发者使用！必须保证组件当前配置的version(kami.config中的version)大于kami-source/info.config中配置的版本，否则**打包失败**。打包成功后会自动更新kami-source中的版本号和最后更新时间数据。
+说明：组件打包，仅供组件开发者使用！默认打包到当前目录下的kami-source文件夹。必须保证组件当前配置的version(kami.config中的version)大于kami-source/info.config中配置的版本，否则**打包失败**。打包成功后会自动更新kami-source中的版本号和最后更新时间数据。
 
 参数：widget必须指定。
 
 例如：fekit kami -p dialog
 
-### --packall[path]
-说明：全部组件打包，仅供组件开发者使用！必须保证组件当前配置的version(kami.config中的version)大于kami-source/info.config中配置的版本，否则打包失败。打包成功后会自动更新kami-source中的版本号和最后更新时间数据。
+### --packall
+说明：全部组件打包，仅供组件开发者使用！默认打包到当前目录下的kami-source文件夹。必须保证组件当前配置的version(kami.config中的version)大于kami-source/info.config中配置的版本，否则打包失败。打包成功后会自动更新kami-source中的版本号和最后更新时间数据。
 
-参数：kami-source文件的路径。默认打包到当前目录下的kami-source文件夹，如果有该参数，则打包到指定路径。
-
-例如：fekit kami --packall    fekit kami --packall '/Users/guest/kami-source'
+例如：fekit kami --packall    fekit kami --packall --path /Users/guest/kami-source
 
 ### --qappinstall/qappadd/qappupdate/qappdel
 说明：qapp命令模式，功能同install/add/update/del命令一样。qapp的安装目录为src/modules/scripts，与kami默认的安装路径src/kami不一致，所以才提供了该临时功能方便安装。
@@ -93,6 +90,10 @@ KamiBuilder
 ### --version || -v
 说明：查看kami构建工具版本号。
 例如：fekit kami -v
+
+### --path
+说明：自定义路径，支持绝对路径和相对路径。对init/install/add/update/del/pack/packall等命令都有效。
+例如：fekit kami --init --path '/Users/guest/kami'    fekit kami --init --path '../guest/kami'
 
 
 ## TODO
