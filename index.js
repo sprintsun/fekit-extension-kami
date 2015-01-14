@@ -282,8 +282,33 @@ function updateWidget(type, version, root) {
             return;
         }
 
-        version == "*" && (version = kamiInfo.widgets[type].version);
-        log('查询到 ' + type + ' 的最新版本：' + version);
+        var versionList = [];
+        fs.readdirSync(widgetRootPath).forEach(function(version) {
+            checkVersion(version) && versionList.push(version);
+        });
+        if(versionList.length === 0) {
+            error(type + ' 不存在已安装版本，请先执行安装才能进行更新！。');
+            cb(null);
+            return;
+        }
+
+        if(version == "*") {
+            version = kamiInfo.widgets[type].version;
+            log('查询到 ' + type + ' 的最新版本：' + version);
+        } else {
+            if(~versionList.indexOf(version)) {
+                error('指定更新的版本号 ' + version + ' 当前系统已存在， 你是猪头吗！');
+                cb(null);
+                return;
+            }
+            if(!compareVersion(versionList[versionList.length - 1], version)) {
+                error('指定更新的版本号 ' + version + ' 小于系统已存在的版本， 你是猪头吗！');
+                cb(null);
+                return;
+            }
+            log('更新 ' + type + ' 到指定版本：' + version);
+        }
+
         var widget = type + '@' + version;
         log('开始安装 ' + widget + ' ...');
         total++;
@@ -448,7 +473,6 @@ function pack(root, widget) {
         // 4. 读取该组件的kami.config
         var config;
         try {
-
             var configPath = path.join(tmpPath, kamiConfigFile);
             fs.existsSync(configPath) && (config = JSON.parse(fs.readFileSync(configPath)));
         } catch (e) {
