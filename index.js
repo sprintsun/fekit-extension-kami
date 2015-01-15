@@ -7,9 +7,11 @@ var fs = require('fs'),
     fsUtil = require('./fs-util');
 
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
-var VERSION = '0.0.6';
+var VERSION = '0.0.7';
 var kamiInfo = null;
-var kamiSource = 'src/kami';
+var kamiSource = 'src/kami/scripts';
+var kamiDemo = 'src/kami/demo';
+var kamiAdapter = 'src/kami/adapter';
 var kamiConfigFile = 'kami.config';
 var kamiInfoFile = 'info.config';
 
@@ -722,7 +724,7 @@ exports.run = function( options ){
         var packRoot = options.path ? root : path.join(root, 'kami-source');
         pack(packRoot);
     } else if (options.del || options.qappdel) {
-        kamiSource = options.del ? 'src/kami' : 'src/modules/scripts';
+        kamiSource = options.del ? 'src/kami/scripts' : 'src/modules/scripts';
         options.qappdel && (options.del = options.qappdel);
         if(options.del !== true) {
             var index = options.del.indexOf('@');
@@ -751,7 +753,7 @@ exports.run = function( options ){
                 return;
             }
         } else if (options.install || options.qappinstall) {
-            kamiSource = options.install ? 'src/kami' : 'src/modules/scripts';
+            kamiSource = options.install ? 'src/kami/scripts' : 'src/modules/scripts';
             var config = getKamiConfig(root);
             if(config && config.scripts) {
                 var widgets = [];
@@ -765,7 +767,7 @@ exports.run = function( options ){
                 return;
             }
         } else if (options.add || options.qappadd) {
-            kamiSource = options.add ? 'src/kami' : 'src/modules/scripts';
+            kamiSource = options.add ? 'src/kami/scripts' : 'src/modules/scripts';
             options.qappadd && (options.add = options.qappadd);
             if(options.add !== true) {
                 var index = options.add.indexOf('@');
@@ -781,7 +783,7 @@ exports.run = function( options ){
                 return;
             }
         } else if (options.update || options.qappupdate) {
-            kamiSource = options.update ? 'src/kami' : 'src/modules/scripts';
+            kamiSource = options.update ? 'src/kami/scripts' : 'src/modules/scripts';
             options.qappupdate && (options.update = options.qappupdate);
             if(options.update !== true) {
                 var index = options.update.indexOf('@');
