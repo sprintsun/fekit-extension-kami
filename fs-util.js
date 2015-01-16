@@ -71,10 +71,10 @@ function mkDir(dirPath, callback) {
  * @param targetPath 目标文件夹路径，如果目标文件夹不存在，则自动创建
  */
 function copySync(sourcePath, targetPath) {
-    if(isFileSync(sourcePath)) {
-        copyFileSync(sourcePath, targetPath);
-    } else if(isDirSync(sourcePath)) {
+    if(isDirSync(sourcePath)) {
         copyDirSync(sourcePath, targetPath);
+    } else {
+        copyFileSync(sourcePath, targetPath);
     }
 }
 
@@ -86,8 +86,11 @@ function copySync(sourcePath, targetPath) {
  */
 function copyDirSync(sourcePath, targetPath) {
 
-    if(!isDirSync(sourcePath)) {
+    if(!fs.existsSync(sourcePath)) {
         throw new Error('不存在源文件夹：' + sourcePath);
+    } else if(!isDirSync(sourcePath)) {
+        console.error('源文件路径不是文件夹类型');
+        return;
     }
 
     mkDirSync(targetPath);
@@ -112,19 +115,32 @@ function copyDirSync(sourcePath, targetPath) {
  */
 function copyFileSync(sourceFile, targetPath) {
 
-    if(!isFileSync(sourceFile)) {
+    if(!fs.existsSync(sourceFile)) {
         throw new Error('不存在源文件：' + sourceFile);
+    } else if(isDirSync(sourceFile)) {
+        console.error('源文件路径不是文件类型');
+        return;
     }
 
     if(!fs.exists(targetPath)) {
         mkDirSync(targetPath);
     }
 
+    var targetFile = path.join(targetPath, path.basename(sourceFile));
+
+    if(isSymLinkSync(sourceFile)) {
+        try {
+            fs.symlinkSync(sourceFile, targetFile);
+        } catch(e) {
+            console.warn('WARN: ' + e.message);
+        }
+        return;
+    }
+
     var buffSize = 64 * 1024, //64K
         buff = new Buffer(buffSize);
 
-    var targetFile = path.join(targetPath, path.basename(sourceFile)),
-        readable = fs.openSync(sourceFile, 'r'),
+    var readable = fs.openSync(sourceFile, 'r'),
         writable = fs.openSync(targetFile, 'w'),
         readSize, pos = 0;
 
@@ -191,6 +207,15 @@ function isFileSync(file) {
     return fs.lstatSync(file).isFile();
 }
 
+/**
+ *
+ * @param file
+ * @returns {Boolean}
+ */
+function isSymLinkSync(file) {
+    return fs.lstatSync(file).isSymbolicLink();
+}
+
 module.exports = {
     rmDirSync: rmDirSync,
     mkDirSync: mkDirSync,
@@ -201,6 +226,7 @@ module.exports = {
     fileListSync: fileListSync,
     isDirSync: isDirSync,
     isFileSync: isFileSync,
+    isSymLinkSync: isSymLinkSync,
     createFileSync: createFileSync,
     moveToUpperDirSync: moveToUpperDirSync
 };
