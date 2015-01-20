@@ -87,9 +87,9 @@ function copySync(sourcePath, targetPath) {
 function copyDirSync(sourcePath, targetPath) {
 
     if(!fs.existsSync(sourcePath)) {
-        throw new Error('不存在源文件夹：' + sourcePath);
+        throw new Error('ERROR: 不存在源文件夹：' + sourcePath);
     } else if(!isDirSync(sourcePath)) {
-        console.error('源文件路径不是文件夹类型');
+        console.error('ERROR: 源文件路径不是文件夹类型');
         return;
     }
 
@@ -116,9 +116,9 @@ function copyDirSync(sourcePath, targetPath) {
 function copyFileSync(sourceFile, targetPath) {
 
     if(!fs.existsSync(sourceFile)) {
-        throw new Error('不存在源文件：' + sourceFile);
+        throw new Error('ERROR: 不存在源文件：' + sourceFile);
     } else if(isDirSync(sourceFile)) {
-        console.error('源文件路径不是文件类型');
+        console.error('ERROR: 源文件路径不是文件类型');
         return;
     }
 

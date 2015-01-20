@@ -37,10 +37,12 @@ KamiBuilder
 
 例如：fekit kami --init
 
-### --install || -i
+### --install || -i [demo@version]
 说明：加载当前目录kami.config的scripts节点配置的组件
 
-例如：fekit kami -i
+参数：如果参数为demo@version，则安装的是demo文件
+
+例如：fekit kami -i   fekit kami -i demo@0.0.1
 
 ### --add || -a [widget@version]
 说明：添加kami组件。不会自动更新index.js文件
