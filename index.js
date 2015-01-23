@@ -7,7 +7,7 @@ var fs = require('fs'),
     fsUtil = require('./fs-util');
 
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
-var VERSION = '0.0.10';
+var VERSION = '0.0.11';
 var kamiInfo = null;
 var kamiSource = 'src/kami/scripts';
 var kamiDemo = 'src/kami/demo';
@@ -195,6 +195,9 @@ function addSingleWidget(type, version, root, cb) {
     var widgetPath = path.join(localPath, version);
     if(fs.existsSync(widgetPath)) {
         cb(widget + '已存在。', true);
+        if(!fs.existsSync(path.join(localPath, 'index.js'))) {
+            updateWidgetIndex(version, type, localPath, true);
+        }
         return;
     }
 
@@ -312,7 +315,7 @@ function addWidget(type, version, root) {
                     }
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, path.join(root, kamiSource, type), false);
+                    updateWidgetIndex(version, type, path.join(root, kamiSource, type), false);
                     success('安装 ' + widget + ' 成功 ...');
                     total = count = 0;
                     cb(null);
@@ -406,7 +409,7 @@ function updateWidget(type, version, root) {
                     }
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, path.join(root, kamiSource, type), true);
+                    updateWidgetIndex(version, type, path.join(root, kamiSource, type), true);
                     success('安装 ' + widget + ' 成功 ...');
                     total = count = 0;
                     deleteOldVersion(type, version, root, function() {
@@ -445,12 +448,13 @@ function deleteOldVersion(type, version, root, cb) {
 }
 
 // 管理组件目录下的index.js
-function updateWidgetIndex(version, widgetPath, rewrite) {
+function updateWidgetIndex(version, widget, widgetPath, rewrite) {
     var filePath = path.join(widgetPath, 'index.js');
     var existsFile = fs.existsSync(filePath);
     if(rewrite || !existsFile) {
         var file = fs.createWriteStream(filePath);
-        file.write('module.exports = require("./' + version + '/index.js");');
+        file.write('var ' + widget + ' = require("./' + version + '/index.js");\n');
+        file.write('module.exports = ' + widget + ';');
         file.end();
     }
 }
