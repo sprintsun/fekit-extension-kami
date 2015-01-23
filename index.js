@@ -7,7 +7,7 @@ var fs = require('fs'),
     fsUtil = require('./fs-util');
 
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
-var VERSION = '0.0.9';
+var VERSION = '0.0.10';
 var kamiInfo = null;
 var kamiSource = 'src/kami/scripts';
 var kamiDemo = 'src/kami/demo';
@@ -244,7 +244,8 @@ function injectVersion(widgetPath, dependWidgets) {
             for(var name in dependWidgets) {
                 content = content.replace(getReg(name), function($1,$2) {
                     inject = true;
-                    return $2 + dependWidgets[name] + '/index.js';
+                    // 因为添加了版本号，增加了一层路径
+                    return $2.replace('../', '../../') + dependWidgets[name] + '/index.js';
                 });
             }
             inject && fs.writeFileSync(srcFile, content);
@@ -485,14 +486,14 @@ function deleteWidget(type, version, root) {
  * @root kami-source的根路径
  * @widget 组件，如果有该参数则执行单个组件打包
  */
-function pack(root, widget) {
+function pack(root, source, widget) {
 
-    if(!fs.existsSync(root)) {
-        error('路径 ' + root + '不存在');
+    if(!fs.existsSync(source)) {
+        error('打包路径 ' + source + '不存在');
         return;
     }
 
-    var infoConfigPath = path.join(root, kamiInfoFile);
+    var infoConfigPath = path.join(source, kamiInfoFile);
     if(!fs.existsSync(infoConfigPath)) {
         error('kami-source目录下不存在'+kamiInfoFile+'文件');
         return;
@@ -509,19 +510,19 @@ function pack(root, widget) {
     var total = 0, count = 0;
 
     // 单个打包
-    var singlePack = function(widget) {
+    var singlePack = function(widget, widgetRoot) {
 
         var exclude = ['.git', '.gitignore', '.DS_Store'];
 
         // 1. 通过检查文件夹中是否包含kami.config来判断该文件夹是否为kami组件模块
-        var configPath = path.join(widget, kamiConfigFile);
+        var configPath = path.join(widgetRoot, widget, kamiConfigFile);
         if(!fs.existsSync(configPath)) {
             return;
         }
 
         total++;
         // 2. 将kami组件文件夹拷贝到临时文件夹中
-        var tmpPath = path.join(root, './tmp', widget);
+        var tmpPath = path.join(source, './tmp', widget);
         fsUtil.copyDirSync(widget, tmpPath);
 
         // 3. 清除文件夹中无用的版本文件
@@ -566,7 +567,7 @@ function pack(root, widget) {
             }
 
             // 6. 在kami-source中创建目录
-            var sourcePath = root + '/' + widget;
+            var sourcePath = source + '/' + widget;
             fsUtil.mkDirSync(sourcePath);
 
             // 7. 压缩文件到kami-source中
@@ -592,7 +593,7 @@ function pack(root, widget) {
 
                 // 9. 完成所有打包，删除tmp文件夹，把infoConfig回写到info.config中
                 if(++count == total) {
-                    fsUtil.rmDirSync(path.join(root, './tmp'));
+                    fsUtil.rmDirSync(path.join(source, './tmp'));
                     var file = fs.createWriteStream(infoConfigPath);
                     file.write(JSON.stringify(infoConfig));
                     file.end();
@@ -607,20 +608,20 @@ function pack(root, widget) {
 
     log('组件打包开始 ...');
 
-    if (!fs.existsSync(path.join(root, './tmp'))) {
-        fs.mkdirSync(path.join(root, './tmp'));
+    if (!fs.existsSync(path.join(source, './tmp'))) {
+        fs.mkdirSync(path.join(source, './tmp'));
     }
 
     if(widget) {
         if(fs.existsSync(path.join(root, widget))) {
-            singlePack(widget);
+            singlePack(widget, root);
         } else {
             error('不存在组件' + widget);
             return;
         }
     } else {
-        fs.readdirSync(path.join(root)).forEach(function(file) {
-            singlePack(file);
+        fs.readdirSync(root).forEach(function(widget) {
+            singlePack(widget, root);
         });
     }
 
@@ -756,11 +757,14 @@ exports.set_options = function( optimist ){
 
 exports.run = function( options ){
 
-    var root = options.cwd;
+    var root;
+    var cwd = options.cwd;
     var customPath = options.path;
 
     if(customPath) {
-        root = customPath.charAt(0) == '/' ? customPath : path.join(root, customPath);
+        root = customPath.charAt(0) == '/' ? customPath : path.join(cwd, customPath);
+    } else {
+        root = cwd;
     }
 
     options.list = typeof options.l == "undefined" ? options.list : options.l;
@@ -780,13 +784,13 @@ exports.run = function( options ){
     } else if(options.pack) {
         if(options.pack !== true) {
             var packRoot = options.path ? root : path.join(root, 'kami-source');
-            pack(packRoot, options.pack);
+            pack(cwd, packRoot, options.pack);
         } else {
             warn('必须指定需要打包的组件名！例如fekit kami -p dialog');
         }
     } else if(options.packall) {
         var packRoot = options.path ? root : path.join(root, 'kami-source');
-        pack(packRoot);
+        pack(cwd, packRoot);
     } else if (options.del || options.qappdel) {
         kamiSource = options.del ? 'src/kami/scripts' : 'src/modules/scripts';
         options.qappdel && (options.del = options.qappdel);
