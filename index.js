@@ -9,7 +9,7 @@ var fs = require('fs'),
 // 下载地址
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
 // 当前版本号
-var VERSION = '0.0.1';
+var VERSION = '0.1.0';
 // info.config加载到的配置
 var kamiInfo = null;
 // kami-widget默认安装的目录
@@ -204,7 +204,7 @@ function installAdapter(type, version, root) {
         fsUtil.mkDirSync(adapterPath)
 
         // 下载
-        var url = BASE_URL + 'adapter/' + type + widget + '.map';
+        var url = BASE_URL + 'adapter/' + widget + '.map';
         request({
             url: url,
             encoding: null
@@ -791,7 +791,6 @@ exports.set_options = function( optimist ){
     optimist.alias('p', 'pack');
     optimist.describe('p', '组件打包【开发者使用】');
 
-    optimist.describe('demo', '安装demo');
     optimist.describe('path', '指定路径,支持绝对和相对路径');
     optimist.describe('packall', '全部组件打包【开发者使用】');
 
@@ -836,7 +835,7 @@ exports.run = function( options ){
             var packRoot = options.path ? root : path.join(root, 'kami-source');
             pack(cwd, packRoot, options.pack);
         } else {
-            warn('必须指定需要打包的组件名！例如fekit kami -p dialog');
+            warn('必须指定需要打包的组件名！');
         }
     } else if(options.packall) {
         var packRoot = options.path ? root : path.join(root, 'kami-source');
@@ -871,8 +870,8 @@ exports.run = function( options ){
                 return;
             }
         } else if (options.install || options['qappinstall']) {
-            if(options.install && options.install !== true) {// 安装demo
-                if(options.install.indexOf("demo") === 0) {
+            if(options.install && options.install !== true) {
+                if(options.install.indexOf("demo") === 0) {// 安装demo
                     var index = options.install.indexOf('@');
                     if(~index) { // 有指定版本号
                         var version = options.install.substring(index + 1);
@@ -880,6 +879,18 @@ exports.run = function( options ){
                     } else {
                         taskList.push(installDemo('*', root));
                     }
+                } else if(options.install.indexOf('adapter-') === 0) {
+                    var index = options.install.indexOf('@');
+                    if(~index) { // 有指定版本号
+                        var type = options.install.substring(0, index);
+                        var version = options.install.substring(index + 1);
+                        taskList.push(installAdapter(type, version, root));
+                    } else {
+                        taskList.push(installAdapter(options.install, '*', root));
+                    }
+                } else {
+                    error('输入参数有误，请检查！');
+                    return
                 }
             } else {// 安装组件
                 kamiSource = options.install ? 'src/kami/scripts' : 'src/modules/scripts';
