@@ -9,19 +9,21 @@ var fs = require('fs'),
 // 下载地址
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
 // 当前版本号
-var VERSION = '0.1.0';
+var VERSION = '0.1.1';
 // info.config加载到的配置
 var kamiInfo = null;
 // kami-widget默认安装的目录
-var kamiSource = 'src/kami/scripts';
+var kamiWidgets = 'src/kami/scripts';
 // kami-demo默认安装的目录
-var kamiDemo = 'src/kami/demo';
+var kamiDemo = 'src/kami/';
 // kami-adapter默认安装的目录
 var kamiAdapter = 'src/kami/adapter';
 // kami配置文件默认文件名（每个widget/adapter目录下）
 var kamiConfigFile = 'kami.config';
 // kami资源信息默认文件名（kami-source目录下）
 var kamiInfoFile = 'info.config';
+// 排除的文件
+var excludeFile = ['.git', '.gitignore', '.DS_Store'];
 
 var log = console.log;
 var success = function(msg) {
@@ -45,14 +47,12 @@ function checkVersion(version) {
 // 显示已提供的kami组件信息
 function showList() {
     return function(cb) {
-        var widgets;
+        var widgets = kamiInfo;
         info('kami组件列表信息：');
         log('------------------------------------');
-        if (widgets = kamiInfo['widgets']) {
-            for(var name in widgets) {
-                var space = name.length > 7 ? '\t' : '\t\t';
-                log(name + space + widgets[name].version + '\t\t' + widgets[name].description);
-            }
+        for(var name in widgets) {
+            var space = name.length > 7 ? '\t' : '\t\t';
+            log(name + space + widgets[name].version + '\t\t' + widgets[name].description);
         }
         cb(null);
     };
@@ -60,7 +60,7 @@ function showList() {
 
 // 显示本地已安装的kami组件信息
 function showLocalList(root) {
-    var widgetsRoot = path.join(root, kamiSource);
+    var widgetsRoot = path.join(root, kamiWidgets);
     if(fs.existsSync(widgetsRoot)) {
         info('kami组件列表信息（local）：');
         log('------------------------------------');
@@ -81,8 +81,8 @@ function showLocalList(root) {
 // 显示单个组件详细信息
 function showInfo(type) {
     return function(cb) {
-        var widgets = kamiInfo['widgets'];
-        if (widgets && widgets[type]) {
+        var widgets = kamiInfo;
+        if (widgets[type]) {
             log('------------------------------------');
             log('组件名称：' + type);
             log('最新版本：' + widgets[type].version);
@@ -121,7 +121,7 @@ function installWidget(taskList, widgets, root) {
         warn('请在"'+kamiConfigFile+'"的scripts节点配置需要安装的组件！');
         return false;
     }
-    var kamiPath = path.join(root, kamiSource);
+    var kamiPath = path.join(root, kamiWidgets);
     fsUtil.rmDirSync(kamiPath);
     fsUtil.mkDirSync(kamiPath);
     widgets.forEach(function(widget) {
@@ -131,109 +131,95 @@ function installWidget(taskList, widgets, root) {
 }
 
 // 安装demo
-function installDemo(version, root) {
-    return function(cb) {
+function addDemo(widget, version, root, cb) {
 
-        version == "*" && (version = kamiInfo['demo'].version);
-        var widget = 'demo@' + version;
-        log('开始安装 ' + widget + ' ...');
-
-        if(!checkVersion(version)) {
-            warn('版本号 ' + version + ' 有误，请遵循semver语义化版本规则！');
-            cb(null);
-            return;
-        }
-
-        var demoPath = path.join(root, kamiDemo);
-
-        // 清空并创建demo目录
-        fsUtil.rmDirSync(demoPath);
-        fsUtil.mkDirSync(demoPath)
-
-        // 下载
-        var url = BASE_URL + 'demo/' + widget + '.map';
-        request({
-            url: url,
-            encoding: null
-        }, function (err, res, body) {
-            if (!err && res.statusCode === 200) {
-                // 写入临时文件夹创建
-                var tmpPath = path.join(root, './tmp/' + widget + '.tar.gz');
-                fs.writeFileSync(tmpPath, body);
-
-                // 解压
-                new targz().extract(
-                    tmpPath,
-                    demoPath,
-                    function (err) {
-                        if (err) {
-                            error('解压 ' + tmpPath + ' 失败！')
-                            cb(null);
-                        } else {
-                            success('安装 ' + widget + ' 成功 ...');
-                            cb(null);
-                        }
-                    }
-                );
-            } else {
-                error('下载 ' + url + ' 失败！')
-                cb(null);
-            }
-        });
+    if(!checkVersion(version)) {
+        warn('版本号 ' + version + ' 有误，请遵循semver语义化版本规则！');
+        cb(null);
+        return;
     }
+
+    var demoPath = path.join(root, kamiDemo);
+
+    // 创建demo目录
+    fsUtil.mkDirSync(demoPath)
+
+    // 下载
+    var url = BASE_URL + 'demo/' + widget + '.map';
+    request({
+        url: url,
+        encoding: null
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            // 写入临时文件夹创建
+            var tmpPath = path.join(root, './tmp/' + widget + '.tar.gz');
+            fs.writeFileSync(tmpPath, body);
+
+            // 解压
+            new targz().extract(
+                tmpPath,
+                demoPath,
+                function (err) {
+                    if (err) {
+                        error('解压 ' + tmpPath + ' 失败！')
+                        cb(null);
+                    } else {
+                        success('安装 ' + widget + ' 成功 ...');
+                        cb(null);
+                    }
+                }
+            );
+        } else {
+            error('下载 ' + url + ' 失败！')
+            cb(null);
+        }
+    });
 }
 
 // 安装适配器
-function installAdapter(type, version, root) {
-    return function(cb) {
+function addAdapter(widget, version, root, cb) {
 
-        version == "*" && (version = kamiInfo['adapter'][type].version);
-        var widget = type + '@' + version;
-        log('开始安装 ' + widget + ' ...');
-
-        if(!checkVersion(version)) {
-            warn('版本号 ' + version + ' 有误，请遵循semver语义化版本规则！');
-            cb(null);
-            return;
-        }
-
-        var adapterPath = path.join(root, kamiAdapter);
-
-        // 清空并创建adapter目录
-        fsUtil.rmDirSync(adapterPath);
-        fsUtil.mkDirSync(adapterPath)
-
-        // 下载
-        var url = BASE_URL + 'adapter/' + widget + '.map';
-        request({
-            url: url,
-            encoding: null
-        }, function (err, res, body) {
-            if (!err && res.statusCode === 200) {
-                // 写入临时文件夹创建
-                var tmpPath = path.join(root, './tmp/' + widget + '.tar.gz');
-                fs.writeFileSync(tmpPath, body);
-
-                // 解压
-                new targz().extract(
-                    tmpPath,
-                    adapterPath,
-                    function (err) {
-                        if (err) {
-                            error('解压 ' + tmpPath + ' 失败！')
-                            cb(null);
-                        } else {
-                            success('安装 ' + widget + ' 成功 ...');
-                            cb(null);
-                        }
-                    }
-                );
-            } else {
-                error('下载 ' + url + ' 失败！')
-                cb(null);
-            }
-        });
+    if(!checkVersion(version)) {
+        warn('版本号 ' + version + ' 有误，请遵循semver语义化版本规则！');
+        cb(null);
+        return;
     }
+
+    var adapterPath = path.join(root, kamiAdapter);
+
+    // 创建adapter目录
+    fsUtil.mkDirSync(adapterPath);
+
+    // 下载
+    var url = BASE_URL + 'adapter/' + widget + '.map';
+    request({
+        url: url,
+        encoding: null
+    }, function (err, res, body) {
+        if (!err && res.statusCode === 200) {
+            // 写入临时文件夹创建
+            var tmpPath = path.join(root, './tmp/' + widget + '.tar.gz');
+            fs.writeFileSync(tmpPath, body);
+
+            // 解压
+            new targz().extract(
+                tmpPath,
+                adapterPath,
+                function (err) {
+                    if (err) {
+                        error('解压 ' + tmpPath + ' 失败！')
+                        cb(null);
+                    } else {
+                        success('安装 ' + widget + ' 成功 ...');
+                        cb(null);
+                    }
+                }
+            );
+        } else {
+            error('下载 ' + url + ' 失败！')
+            cb(null);
+        }
+    });
 }
 
 // 添加单个组件
@@ -246,7 +232,7 @@ function addSingleWidget(type, version, root, cb) {
 
     // 判断本地是否已存在该版本
     var widget = type + '@' + version;
-    var localPath = path.join(root, kamiSource, type);
+    var localPath = path.join(root, kamiWidgets, type);
     var widgetPath = path.join(localPath, version);
     if(fs.existsSync(widgetPath)) {
         cb(widget + '已存在。', true);
@@ -328,16 +314,25 @@ function addWidget(type, version, root) {
         count = 0;
     return function(cb) {
 
-        if(!kamiInfo['widgets'] || !kamiInfo['widgets'][type]) {
+        if(!kamiInfo[type]) {
             error(type + ' 组件不存在。');
             cb(null);
             return;
         }
 
-        version == "*" && (version = kamiInfo.widgets[type].version);
+        version == "*" && (version = kamiInfo[type].version);
         var widget = type + '@' + version;
         log('开始安装 ' + widget + ' ...');
-        total++;
+
+        if(type == "demo") {// demo安装
+            addDemo(widget, version, root, cb);
+            return;
+        } else if (type.indexOf('adapter-') === 0) {// adapter安装
+            addAdapter(widget, version, root, cb);
+            return;
+        } else {// widget安装
+            total++;
+        }
 
         var callback = function(errMsg, exists, widgetRoot, currWidget) {
             if(exists) {
@@ -365,7 +360,7 @@ function addWidget(type, version, root) {
                     }
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, type, path.join(root, kamiSource, type), false);
+                    updateWidgetIndex(version, type, path.join(root, kamiWidgets, type), false);
                     success('安装 ' + widget + ' 成功 ...');
                     total = count = 0;
                     cb(null);
@@ -383,14 +378,14 @@ function updateWidget(type, version, root) {
         count = 0;
     return function(cb) {
 
-        if(!kamiInfo['widgets'] || !kamiInfo['widgets'][type]) {
+        if(!kamiInfo[type]) {
             error(type + ' 组件不存在。');
             cb(null);
             return;
         }
 
         // 判断本地是否已存在该组件
-        var widgetRootPath = path.join(root, kamiSource, type);
+        var widgetRootPath = path.join(root, kamiWidgets, type);
         if(!fs.existsSync(widgetRootPath) || !fsUtil.fileListSync(widgetRootPath).length) {
             error(type + ' 还未安装，请先执行安装才能进行更新！。');
             cb(null);
@@ -408,7 +403,7 @@ function updateWidget(type, version, root) {
         }
 
         if(version == "*") {
-            version = kamiInfo.widgets[type].version;
+            version = kamiInfo[type].version;
             log('查询到 ' + type + ' 的最新版本：' + version);
         } else {
             if(~versionList.indexOf(version)) {
@@ -454,7 +449,7 @@ function updateWidget(type, version, root) {
                     }
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, type, path.join(root, kamiSource, type), true);
+                    updateWidgetIndex(version, type, path.join(root, kamiWidgets, type), true);
                     success('安装 ' + widget + ' 成功 ...');
                     total = count = 0;
                     deleteOldVersion(type, version, root, function() {
@@ -470,7 +465,7 @@ function updateWidget(type, version, root) {
 
 // 删除旧版本
 function deleteOldVersion(type, version, root, cb) {
-    var widgetPath = path.join(root, kamiSource, type);
+    var widgetPath = path.join(root, kamiWidgets, type);
     var delVersion = '', delDir = [];
     fs.readdirSync(widgetPath).forEach(function(file) {
         var tmpPath = path.join(widgetPath, file);
@@ -507,7 +502,7 @@ function updateWidgetIndex(version, widget, widgetPath, rewrite) {
 // 删除kami组件
 function deleteWidget(type, version, root) {
     // 判断本地是否已存在该组件
-    var widgetRootPath = path.join(root, kamiSource, type);
+    var widgetRootPath = path.join(root, kamiWidgets, type);
     if(!fs.existsSync(widgetRootPath)) {
         error('"' + type + '"还未安装，无法删除！');
         return;
@@ -562,8 +557,6 @@ function pack(root, source, widget) {
     // 单个打包
     var singlePack = function(widget, widgetRoot) {
 
-        var exclude = ['.git', '.gitignore', '.DS_Store'];
-
         // 1. 通过检查文件夹中是否包含kami.config来判断该文件夹是否为kami组件模块
         var configPath = path.join(widgetRoot, widget, kamiConfigFile);
         if(!fs.existsSync(configPath)) {
@@ -576,7 +569,7 @@ function pack(root, source, widget) {
         fsUtil.copyDirSync(widget, tmpPath);
 
         // 3. 清除文件夹中无用的版本文件
-        exclude.forEach(function(ex, index) {
+        excludeFile.forEach(function(ex, index) {
             var exFile = tmpPath + '/' + ex;
             if(fs.existsSync(exFile)) {
                 if(index == 0) {
@@ -601,8 +594,14 @@ function pack(root, source, widget) {
         var version;
         if(config && (version = config.version)) {
 
+            var sourcePath = source + '/' + widget;
+            if(config['family'] == 'adapter') {
+                sourcePath = source + '/adapter';
+                widget = 'adapter-' + widget;
+            }
+
             // 5. 比较版本是否有升级
-            var currWidget = infoConfig['widgets'][widget];
+            var currWidget = infoConfig[widget];
             if(currWidget) {
                 if(currWidget.version === version) {
                     error('当前打包版本 ' + widget + '@' + version + ' 与'+kamiInfoFile+'中配置的版本号一样！');
@@ -617,7 +616,6 @@ function pack(root, source, widget) {
             }
 
             // 6. 在kami-source中创建目录
-            var sourcePath = source + '/' + widget;
             fsUtil.mkDirSync(sourcePath);
 
             // 7. 压缩文件到kami-source中
@@ -638,7 +636,7 @@ function pack(root, source, widget) {
                     currWidget.version = version;
                     currWidget.update_time = formateDate(new Date());
                     currWidget.description = "";
-                    infoConfig['widgets'][widget] = currWidget;
+                    infoConfig[widget] = currWidget;
                 }
 
                 // 9. 完成所有打包，删除tmp文件夹，把infoConfig回写到info.config中
@@ -794,11 +792,6 @@ exports.set_options = function( optimist ){
     optimist.describe('path', '指定路径,支持绝对和相对路径');
     optimist.describe('packall', '全部组件打包【开发者使用】');
 
-    optimist.describe('qappinstall', 'qapp安装使用【开发者使用】');
-    optimist.describe('qappadd', 'qapp添加kami组件【开发者使用】');
-    optimist.describe('qappupdate', 'qapp更新kami组件【开发者使用】');
-    optimist.describe('qappdel', 'qapp删除kami组件【开发者使用】');
-
     optimist.describe('detail', '详细帮助参见https://github.com/sprintsun/fekit-extension-kami');
 
     return optimist;
@@ -811,7 +804,12 @@ exports.run = function( options ){
     var customPath = options.path;
 
     if(customPath) {
-        root = customPath.charAt(0) == '/' ? customPath : path.join(cwd, customPath);
+        if(customPath !== true) {
+            root = customPath.charAt(0) == '/' ? customPath : path.join(cwd, customPath);
+        } else {
+            error('输入有误，请输入--help查看kami命令工具帮助');
+            return;
+        }
     } else {
         root = cwd;
     }
@@ -840,9 +838,7 @@ exports.run = function( options ){
     } else if(options.packall) {
         var packRoot = options.path ? root : path.join(root, 'kami-source');
         pack(cwd, packRoot);
-    } else if (options.del || options.qappdel) {
-        kamiSource = options.del ? 'src/kami/scripts' : 'src/modules/scripts';
-        options.qappdel && (options.del = options.qappdel);
+    } else if (options.del) {
         if(options.del !== true) {
             var index = options.del.indexOf('@');
             if(~index) { // 有指定版本号
@@ -869,61 +865,20 @@ exports.run = function( options ){
                 warn('必须指定需要查询的组件名！例如fekit kami -i dialog');
                 return;
             }
-        } else if (options.install || options['qappinstall']) {
-            if(options.install && options.install !== true) {
-                if(options.install.indexOf("demo") === 0) {// 安装demo
-                    var index = options.install.indexOf('@');
-                    if(~index) { // 有指定版本号
-                        var version = options.install.substring(index + 1);
-                        taskList.push(installDemo(version, root));
-                    } else {
-                        taskList.push(installDemo('*', root));
-                    }
-                } else if(options.install.indexOf('adapter-') === 0) {
-                    var index = options.install.indexOf('@');
-                    if(~index) { // 有指定版本号
-                        var type = options.install.substring(0, index);
-                        var version = options.install.substring(index + 1);
-                        taskList.push(installAdapter(type, version, root));
-                    } else {
-                        taskList.push(installAdapter(options.install, '*', root));
-                    }
-                } else {
-                    error('输入参数有误，请检查！');
-                    return
+        } else if (options.install) {
+            var config = getKamiConfig(root);
+            if(config && config.scripts) {
+                var widgets = [];
+                for(var key in config.scripts) {
+                    widgets.push({name: key, version: config.scripts[key]});
                 }
-            } else {// 安装组件
-                kamiSource = options.install ? 'src/kami/scripts' : 'src/modules/scripts';
-                var config = getKamiConfig(root);
-                if(config && config.scripts) {
-                    var widgets = [];
-                    for(var key in config.scripts) {
-                        widgets.push({name: key, version: config.scripts[key]});
-                    }
-                    if(!installWidget(taskList, widgets, root)) {
-                        return;
-                    }
-                } else {
+                if(!installWidget(taskList, widgets, root)) {
                     return;
                 }
-            }
-        } else if(options['adapter']) {
-            if(options['adapter'] !== true) {
-                var index = options['adapter'].indexOf('@');
-                if(~index) { // 有指定版本号
-                    var type = options['adapter'].substring(0, index),
-                        version = options['adapter'].substring(index + 1);
-                    taskList.push(installAdapter(type, version, root));
-                } else {
-                    taskList.push(installAdapter(options['adapter'], '*', root));
-                }
             } else {
-                warn('必须指定需要添加的适配器名称！');
                 return;
             }
-        } else if (options.add || options['qappadd']) {
-            kamiSource = options.add ? 'src/kami/scripts' : 'src/modules/scripts';
-            options['qappadd'] && (options.add = options['qappadd']);
+        } else if (options.add) {
             if(options.add !== true) {
                 var index = options.add.indexOf('@');
                 if(~index) { // 有指定版本号
@@ -937,9 +892,7 @@ exports.run = function( options ){
                 warn('必须指定需要添加的组件名！');
                 return;
             }
-        } else if (options.update || options['qappupdate']) {
-            kamiSource = options.update ? 'src/kami/scripts' : 'src/modules/scripts';
-            options['qappupdate'] && (options.update = options['qappupdate']);
+        } else if (options.update) {
             if(options.update !== true) {
                 var index = options.update.indexOf('@');
                 if(~index) { // 有指定版本号

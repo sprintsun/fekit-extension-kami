@@ -37,19 +37,17 @@ KamiBuilder
 
 例如：fekit kami --init
 
-### --install || -i [demo@version]
+### --install || -i
 说明：加载当前目录kami.config的scripts节点配置的组件
 
-参数：如果参数为demo@version，则安装的是demo文件
-
-例如：fekit kami -i   fekit kami -i demo@0.0.1
+例如：fekit kami -i
 
 ### --add || -a [widget@version]
 说明：添加kami组件。不会自动更新index.js文件
 
 参数：widget必须指定，如果没有指定version，则默认加载最新版本
 
-例如：fekit kami -a dialog@0.0.1
+例如：fekit kami -a dialog@0.0.1      fekit kami -a adapter-qapp@0.0.1
 
 ### --update || -u [widget@version]
 说明：更新kami组件，会自动更新index.js文件。如果该组件存在**多个版本**，则执行update命令后不会自动删除旧的版本，需要配合del命令删除旧版本。
@@ -84,17 +82,14 @@ KamiBuilder
 
 例如：fekit kami --packall    fekit kami --packall --path /Users/guest/kami-source
 
-### --qappinstall/qappadd/qappupdate/qappdel
-说明：qapp命令模式，功能同install/add/update/del命令一样。qapp的安装目录为src/modules/scripts，与kami默认的安装路径src/kami不一致，所以才提供了该临时功能方便安装。
-
-例如：fekit kami --qappinstall     fekit kami --qappadd dialog@0.0.1      fekit kami -qappupdate dialog
-
 ### --version || -v
 说明：查看kami构建工具版本号。
+
 例如：fekit kami -v
 
 ### --path
 说明：自定义路径，支持绝对路径和相对路径。对init/install/add/update/del/pack/packall等命令都有效。
+
 例如：fekit kami --init --path '/Users/guest/kami'    fekit kami --init --path '../guest/kami'
 
 
