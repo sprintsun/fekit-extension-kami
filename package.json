@@ -1,7 +1,7 @@
 {
     "fekit_extension_command_name":"kami",
     "name": "fekit-extension-kami",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "description": "为fekit增加kami命令",
     "dependencies": {
         "async": "0.9.0",

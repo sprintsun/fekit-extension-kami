@@ -491,10 +491,21 @@ function deleteOldVersion(type, version, root, cb) {
 function updateWidgetIndex(version, widget, widgetPath, rewrite) {
     var filePath = path.join(widgetPath, 'index.js');
     var existsFile = fs.existsSync(filePath);
-    if(rewrite || !existsFile) {
+    // console.log('work here')
+    if (rewrite || !existsFile) {
         var file = fs.createWriteStream(filePath);
-        file.write('var ' + widget + ' = require("./' + version + '/index.js");\n');
-        file.write('module.exports = ' + widget + ';');
+        
+        var fileCntArr = [];
+        fileCntArr.push('/*fix fekit bugs and widget name is js keyword*/');
+        fileCntArr.push('var obj = {};');
+        fileCntArr.push('obj["{{widget}}"] = require("./{{version}}/index.js");');
+        fileCntArr.push('module.exports = obj["{{widget}}"];');
+        
+        var fileCnt = fileCntArr.join('\n');
+        fileCnt = fileCnt.replace(/\{\{widget\}\}/g, widget);
+        fileCnt = fileCnt.replace(/\{\{version\}\}/g, version);
+
+        file.write(fileCnt);
         file.end();
     }
 }
