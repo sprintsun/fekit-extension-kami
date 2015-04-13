@@ -9,7 +9,7 @@ var fs = require('fs'),
 // 下载地址
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
 // 当前版本号
-var VERSION = '0.1.1';
+var VERSION = '0.1.3';
 // info.config加载到的配置
 var kamiInfo = null;
 // kami-widget默认安装的目录
@@ -722,16 +722,16 @@ function compareVersion(oldVersion, newVersion) {
     var reg = /(\d+)\.(\d+)\.(\d+)/;
     var oldArr = oldVersion.match(reg),
         newArr = newVersion.match(reg);
-    if(newArr[1] > oldArr[1]) {
+    if(+newArr[1] > +oldArr[1]) {
         return true;
-    } else if(newArr[2] > oldArr[2]){
-        if(newArr[1] == oldArr[1]) {
+    } else if(+newArr[2] > +oldArr[2]){
+        if(+newArr[1] == +oldArr[1]) {
             return true;
         } else {
             return false;
         }
-    } else if(newArr[3] > oldArr[3]) {
-        if(newArr[1] == oldArr[1] && newArr[2] == oldArr[2]) {
+    } else if(+newArr[3] > +oldArr[3]) {
+        if(+newArr[1] == +oldArr[1] && +newArr[2] == +oldArr[2]) {
             return true;
         } else {
             return false;
