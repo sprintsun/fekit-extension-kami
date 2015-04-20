@@ -9,7 +9,7 @@ var fs = require('fs'),
 // 下载地址
 var BASE_URL = 'http://ued.qunar.com/kami-source/';
 // 当前版本号
-var VERSION = '0.1.3';
+var VERSION = '0.1.4';
 // info.config加载到的配置
 var kamiInfo = null;
 // kami-widget默认安装的目录
@@ -654,7 +654,7 @@ function pack(root, source, widget) {
                 if(++count == total) {
                     fsUtil.rmDirSync(path.join(source, './tmp'));
                     var file = fs.createWriteStream(infoConfigPath);
-                    file.write(JSON.stringify(infoConfig));
+                    file.write(JSON.stringify(infoConfig, null, 4));
                     file.end();
                     log(kamiInfoFile + '更新完成 ...');
                     success('组件打包完成！');
