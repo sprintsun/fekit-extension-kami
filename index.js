@@ -274,7 +274,8 @@ function addSingleWidget(type, version, root, cb) {
                 }
             );
         } else {
-            cb('下载 ' + url + ' 失败！');
+            !fsUtil.fileListSync(localPath).length && fsUtil.rmDirSync(localPath);
+            cb('下载 ' + url + ' 失败！', false, widgetPath, widget);
         }
     });
 }
@@ -316,7 +317,10 @@ function getDependence(widgetRoot) {
 // 添加完整的kami组件,包括依赖
 function addWidget(type, version, root) {
     var total = 0,
-        count = 0;
+        count = 0,
+        fail = false,
+        dependencies = [];
+    // TODO 安装失败后，清除安装的依赖，优化代码
     return function(cb) {
 
         if(!kamiInfo[type]) {
@@ -348,9 +352,19 @@ function addWidget(type, version, root) {
                     count++;
                 }
             } else if(errMsg) {
+                count++;
+                fail = true;
                 error(errMsg);
-                error('安装 ' + widget + ' 失败！');
-                cb(null);
+                if(count != 1) {
+                    warn('安装依赖 ' + currWidget + '  失败！');
+                }
+                if(count == total) {
+                    fsUtil.rmDirSync(path.join(root, kamiWidgets, type));
+                    total = count = 0;
+                    fail = false;
+                    error('安装 ' + widget + ' 失败！');
+                    cb(null);
+                }
             } else {
                 count++;
                 if(count != 1) {
@@ -365,10 +379,19 @@ function addWidget(type, version, root) {
                     }
                 }
                 if(count == total) {
-                    updateWidgetIndex(version, type, path.join(root, kamiWidgets, type), false);
-                    success('安装 ' + widget + ' 成功 ...');
-                    total = count = 0;
-                    cb(null);
+                    if(fail) {
+                        fsUtil.rmDirSync(path.join(root, kamiWidgets, type));
+                        fail = false;
+                        total = count = 0;
+                        error('安装 ' + widget + ' 失败！');
+                        cb(null);
+                    } else {
+                        updateWidgetIndex(version, type, path.join(root, kamiWidgets, type), false);
+                        fail = false;
+                        total = count = 0;
+                        success('安装 ' + widget + ' 成功 ...');
+                        cb(null);
+                    }
                 }
             }
         };
@@ -380,7 +403,8 @@ function addWidget(type, version, root) {
 // 更新kami组件
 function updateWidget(type, version, root) {
     var total = 0,
-        count = 0;
+        count = 0,
+        fail = false;
     return function(cb) {
 
         if(!kamiInfo[type]) {
@@ -437,9 +461,19 @@ function updateWidget(type, version, root) {
                     count++;
                 }
             } else if(errMsg) {
+                count++;
+                fail = true;
                 error(errMsg);
-                error('安装 ' + widget + ' 失败！');
-                cb(null);
+                if(count != 1) {
+                    warn('安装依赖 ' + currWidget + '  失败！');
+                }
+                if(count == total) {
+                    fsUtil.rmDirSync(path.join(root, kamiWidgets, type, version));
+                    total = count = 0;
+                    fail = false;
+                    error('安装 ' + widget + ' 失败！');
+                    cb(null);
+                }
             } else {
                 count++;
                 if(count != 1) {
@@ -460,6 +494,22 @@ function updateWidget(type, version, root) {
                     deleteOldVersion(type, version, root, function() {
                         cb(null);
                     });
+
+                    if(fail) {
+                        fsUtil.rmDirSync(path.join(root, kamiWidgets, type, version));
+                        fail = false;
+                        total = count = 0;
+                        error('安装 ' + widget + ' 失败！');
+                        cb(null);
+                    } else {
+                        updateWidgetIndex(version, type, path.join(root, kamiWidgets, type), true);
+                        fail = false;
+                        total = count = 0;
+                        success('安装 ' + widget + ' 成功 ...');
+                        deleteOldVersion(type, version, root, function() {
+                            cb(null);
+                        });
+                    }
                 }
             }
         };
@@ -497,8 +547,6 @@ function updateWidgetIndex(version, widget, widgetPath, rewrite) {
     var filePath = path.join(widgetPath, 'index.js');
     var existsFile = fs.existsSync(filePath);
     if (rewrite || !existsFile) {
-        var file = fs.createWriteStream(filePath);
-
         var fileCntArr = [];
         //fix fekit bugs and widget name is js keyword
         fileCntArr.push('var obj = {};');
@@ -509,8 +557,7 @@ function updateWidgetIndex(version, widget, widgetPath, rewrite) {
         fileCnt = fileCnt.replace(/\{\{widget\}\}/g, widget);
         fileCnt = fileCnt.replace(/\{\{version\}\}/g, version);
 
-        file.write(fileCnt);
-        file.end();
+        fs.writeFileSync(filePath, fileCnt);
     }
 }
 
@@ -835,11 +882,18 @@ function init(root) {
     } else {
         fsUtil.mkDirSync(root);
     }
-    var file = fs.createWriteStream(file);
-    var content = '{\n\t"scripts": {},\n\t"adapter": {}\n}';
-    file.write(content);
-    file.end();
-    success('初始化成功，已创建'+kamiConfigFile);
+
+    fs.writeFile(file, '{\n\t"scripts": {}\n}', function(err) {
+        if(!err) {
+            success('初始化成功，已创建'+kamiConfigFile);
+        } else {
+            if(err.errno == 3) {
+                error('初始化失败，在目录 ' + root + ' 下没有权限创建文件');
+            } else {
+                console.error(err);
+            }
+        }
+    });
 }
 
 exports.usage = "kami构建工具"
