@@ -21,3 +21,6 @@ BUG修复：版本号0.0.9大于0.0.10的问题
 ## 0.2.0
 * 增加publish命令（publish widget1/widget2），可以直接推送资源包到服务器，删除了pack和packall命令
 * 增加--force || -f 命令，如果version与服务器版本一致需要强行覆盖，需要使用该命令
+
+## 0.2.1
+* 修复adapter安装后路径错误的问题

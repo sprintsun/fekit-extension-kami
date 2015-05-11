@@ -14,7 +14,7 @@ var DOWNLOAD_URL = 'http://ued.qunar.com/mobile/source/kami/';
 var UPLOAD_URL = 'http://l-uedmobile0.h.dev.cn0.qunar.com:4369/upload?';
 //var UPLOAD_URL = 'http://localhost:4369/upload?';
 // 当前版本号
-var VERSION = '0.2.0';
+var VERSION = '0.2.1';
 // info.config加载到的配置
 var kamiInfo = null;
 // kami-widget默认安装的目录
@@ -215,6 +215,13 @@ function addAdapter(widget, version, root, cb) {
                         error('解压 ' + tmpPath + ' 失败！')
                         cb(null);
                     } else {
+                        // 重命名adapter-xxx 目录 为 xxx
+                        var simpleName = widget.substring('adapter-'.length);
+                        var oldPath = path.join(adapterPath, widget);
+                        var newPath = path.join(adapterPath, simpleName);
+                        fs.existsSync(newPath) && fsUtil.rmDirSync(newPath);
+                        fs.renameSync(oldPath, newPath);
+
                         success('安装 ' + widget + ' 成功 ...');
                         cb(null);
                     }
