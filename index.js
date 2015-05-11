@@ -8,11 +8,11 @@ var fs = require('fs'),
     fsUtil = require('./fs-util');
 
 // 下载地址
-// var DOWNLOAD_URL = 'http://ued.qunar.com/mobile/source/kami/';
-var DOWNLOAD_URL = 'http://localhost:4369/kami/';
+var DOWNLOAD_URL = 'http://ued.qunar.com/mobile/source/kami/';
+//var DOWNLOAD_URL = 'http://localhost:4369/kami/';
 // 上传地址
-// var UPLOAD_URL = 'http://l-uedmobile0.h.dev.cn0.qunar.com:4369/upload?';
-var UPLOAD_URL = 'http://localhost:4369/upload?';
+var UPLOAD_URL = 'http://l-uedmobile0.h.dev.cn0.qunar.com:4369/upload?';
+//var UPLOAD_URL = 'http://localhost:4369/upload?';
 // 当前版本号
 var VERSION = '0.2.0';
 // info.config加载到的配置
