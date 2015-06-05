@@ -92,6 +92,11 @@ KamiBuilder
 
 例如：fekit kami --init --path '/Users/guest/kami'    fekit kami --init --path '../guest/kami'
 
+### --all
+说明：配合--install命令使用，可以使用--all来安装所有的kami组件，而不需要配置kami.config。
+
+例如：fekit kami -i --all
+
 
 ## TODO
 1）提供单独的kami命令工具，不依赖于fekit，需要考虑如何解决require问题

@@ -14,7 +14,7 @@ var DOWNLOAD_URL = 'http://ued.qunar.com/mobile/source/kami/';
 var UPLOAD_URL = 'http://l-uedmobile0.h.dev.cn0.qunar.com:4369/upload?';
 //var UPLOAD_URL = 'http://localhost:4369/upload?';
 // 当前版本号
-var VERSION = '0.2.1';
+var VERSION = '0.2.2';
 // info.config加载到的配置
 var kamiInfo = null;
 // kami-widget默认安装的目录
@@ -121,17 +121,21 @@ function getKamiInfo(cb) {
 }
 
 // 通过kami.config安装kami组件
-function installWidget(taskList, widgets, root) {
-    if(!widgets.length) {
-        warn('请在"'+kamiConfigFile+'"的scripts节点配置需要安装的组件！');
-        return false;
+function installWidget(taskList, widgets, root, isAll) {
+    if(isAll) {
+        taskList.push(addAllWidget(root));
+    } else {
+        if(!widgets.length) {
+            warn(kamiConfigFile+' 的scripts节点还未配置需要安装的组件！');
+            return false;
+        }
+        var kamiPath = path.join(root, kamiWidgets);
+        fsUtil.rmDirSync(kamiPath);
+        fsUtil.mkDirSync(kamiPath);
+        widgets.forEach(function(widget) {
+            taskList.push(addWidget(widget.name, widget.version, root));
+        });
     }
-    var kamiPath = path.join(root, kamiWidgets);
-    fsUtil.rmDirSync(kamiPath);
-    fsUtil.mkDirSync(kamiPath);
-    widgets.forEach(function(widget) {
-        taskList.push(addWidget(widget.name, widget.version, root));
-    });
     return true;
 }
 
@@ -318,6 +322,24 @@ function getDependence(widgetRoot) {
     } catch(e) {
         error('读取组件配置文件失败！');
         return null;
+    }
+}
+
+// 添加所有kami组件
+function addAllWidget(root) {
+    var taskList = [], kamiConfig = {scripts: {}};
+
+    return function(cb) {
+        kamiInfo && Object.keys(kamiInfo).forEach(function(key) {
+            var widget = kamiInfo[key];
+            kamiConfig.scripts[key] = widget.version;
+            taskList.push(addWidget(key, widget.version, root));
+        });
+        async.series(taskList, function() {
+            fs.writeFileSync(path.join(root, kamiConfigFile), JSON.stringify(kamiConfig, null, 4));
+            success('完成所有kami组件安装！');
+            cb(null);
+        });
     }
 }
 
@@ -947,6 +969,8 @@ exports.set_options = function( optimist ){
 
     optimist.describe('detail', '详细帮助参见https://github.com/sprintsun/fekit-extension-kami');
 
+    optimist.describe('all', '使用install命令的时候，可以使用--all来安装所有的kami组件');
+
     return optimist;
 }
 
@@ -1010,17 +1034,21 @@ exports.run = function( options ){
                 return;
             }
         } else if (options.install) {
-            var config = getKamiConfig(root);
-            if(config && config.scripts) {
-                var widgets = [];
-                for(var key in config.scripts) {
-                    widgets.push({name: key, version: config.scripts[key]});
-                }
-                if(!installWidget(taskList, widgets, root)) {
+            if(options.all) {
+                installWidget(taskList, [], root, true);
+            } else {
+                var config = getKamiConfig(root);
+                if(config && config.scripts) {
+                    var widgets = [];
+                    for(var key in config.scripts) {
+                        widgets.push({name: key, version: config.scripts[key]});
+                    }
+                    if(!installWidget(taskList, widgets, root, false)) {
+                        return;
+                    }
+                } else {
                     return;
                 }
-            } else {
-                return;
             }
         } else if (options.add) {
             if(options.add !== true) {

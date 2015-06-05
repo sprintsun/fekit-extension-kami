@@ -115,7 +115,7 @@ function copyDirSync(sourcePath, targetPath) {
  */
 function copyFileSync(sourceFile, targetPath) {
 
-    if(!fs.existsSync(sourceFile)) {
+    if(!fs.existsSync(sourceFile) && !isSymLinkSync(sourceFile)) {
         throw new Error('ERROR: 不存在源文件：' + sourceFile);
     } else if(isDirSync(sourceFile)) {
         console.error('ERROR: 源文件路径不是文件类型');
